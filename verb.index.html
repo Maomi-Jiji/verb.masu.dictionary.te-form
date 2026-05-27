@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japanese Verb Sorter</title>
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --g1-color: #E8B2B5; --g2-color: #A2C2E6; --g3-color: #C1D8AC;
+            --bg-base: #F8F6F0; --wood-color: #5C4B43; --text-color: #3E3A39;
+            --primary-color: #899A7B; --accent-color: #D77A6D;
+        }
+
+        body {
+            font-family: 'BIZ UDPGothic', sans-serif; color: var(--text-color);
+            margin: 0; padding: 0;
+            padding-top: 110px; /* 2段ヘッダー用に余白を増加 */
+            display: flex; flex-direction: column; align-items: center;
+            background-color: var(--bg-base);
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='103.923' viewBox='0 0 60 103.923' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23E1D8CB' stroke-width='1.5'%3E%3Cpath d='M30 103.923V51.9615M0 51.9615l30-17.3205 30 17.3205M0 51.9615l30 17.3205 30-17.3205M30 51.9615L0 0M30 51.9615l30-51.9615M30 51.9615L0 103.923M30 51.9615l30 51.9615M15 25.98l30 51.96M45 25.98L15 77.94'/%3E%3C/g%3E%3C/svg%3E");
+            background-size: 60px 103.923px;
+        }
+
+        /* 固定ヘッダー（2段構成） */
+        header {
+            position: fixed; top: 0; left: 0; width: 100%;
+            background-color: rgba(248, 246, 240, 0.95);
+            border-bottom: 3px solid var(--wood-color);
+            backdrop-filter: blur(5px); z-index: 1000;
+            display: flex; flex-direction: column;
+        }
+
+        .header-top {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 20px;
+        }
+
+        .header-title { margin: 0; font-size: 1.3em; text-align: center; flex-grow: 1; letter-spacing: 1px; color: var(--wood-color); }
+        .menu-btn { font-size: 1.8em; background: none; border: none; cursor: pointer; color: var(--wood-color); padding: 5px; transition: transform 0.2s; }
+        .menu-btn:hover { transform: scale(1.1); }
+
+        /* ヘッダー内のクイック設定バー */
+        .header-settings-bar {
+            display: flex; justify-content: center; align-items: center; gap: 15px;
+            background-color: rgba(92, 75, 67, 0.1); padding: 5px 10px;
+            font-size: 0.85em; color: var(--wood-color); border-top: 1px dashed #D5CBB9;
+            flex-wrap: wrap; /* スマホで折り返し */
+        }
+        .header-settings-bar label { cursor: pointer; display: flex; align-items: center; gap: 3px; }
+
+        @media (max-width: 480px) {
+            body { padding-top: 130px; } /* スマホは折り返すので高めに */
+            .header-title { font-size: 1.1em; }
+            .header-settings-bar { font-size: 0.8em; gap: 10px; }
+        }
+
+        /* モーダル */
+        .modal {
+            display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(62, 58, 57, 0.6); align-items: center; justify-content: center; backdrop-filter: blur(3px);
+        }
+        .modal-content {
+            background-color: var(--bg-base); padding: 25px; border-radius: 4px; border: 2px solid var(--wood-color);
+            width: 90%; max-width: 500px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .modal-content h3 { margin-top: 0; border-bottom: 2px solid var(--primary-color); padding-bottom: 8px; font-size: 1.2em; color: var(--wood-color); }
+        .modal-settings-group { margin-bottom: 20px; background: rgba(255,255,255,0.6); padding: 15px; border-radius: 4px; border: 1px solid #ddd; }
+
+        .container {
+            width: 95%; max-width: 600px; background: rgba(255, 255, 255, 0.92); padding: 25px; border-radius: 4px;
+            border: 1px solid rgba(92, 75, 67, 0.2); box-shadow: 0 8px 20px rgba(0,0,0,0.08); margin-bottom: 30px; box-sizing: border-box;
+        }
+
+        .settings-section { margin-bottom: 20px; padding: 15px; background: rgba(255, 255, 255, 0.8); border: 1px solid #E1D8CB; border-radius: 4px; }
+        .settings-section h3 { margin-top: 0; font-size: 1.1em; color: var(--wood-color); border-bottom: 1px dashed #C4B8A6; padding-bottom: 5px; }
+
+        .checkbox-group {
+            display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; max-height: 350px; overflow-y: auto;
+            border: 1px solid #E1D8CB; padding: 10px; background: #fff; border-radius: 2px;
+        }
+        .checkbox-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px; border-bottom: 1px solid #f0ece1; cursor: pointer; }
+        .checkbox-item:hover { background: #FAF8F5; }
+        .checkbox-item:last-child { border-bottom: none; }
+        .verb-main { font-size: 1.1em; font-weight: bold; }
+        .verb-sub { font-size: 0.85em; color: #777; }
+
+        .btn {
+            display: block; width: 100%; padding: 16px; font-size: 1.2em; font-weight: bold; color: white;
+            background-color: var(--wood-color); border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); letter-spacing: 2px;
+        }
+        .btn-start { background-color: var(--primary-color); }
+        .filter-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
+        .filter-btns button { padding: 8px 12px; font-size: 0.9em; border-radius: 4px; border: 1px solid var(--wood-color); background: #fff; color: var(--wood-color); cursor: pointer; }
+
+        #quiz-screen, #result-screen { display: none; }
+        .question-area { text-align: center; margin: 20px 0 40px; min-height: 140px; background: #fff; padding: 20px; border-radius: 4px; border: 1px solid #E1D8CB; position: relative; }
+        .question-area::before, .question-area::after { content: ''; position: absolute; width: 15px; height: 15px; border: 2px solid var(--primary-color); }
+        .question-area::before { top: 5px; left: 5px; border-right: none; border-bottom: none; }
+        .question-area::after { bottom: 5px; right: 5px; border-left: none; border-top: none; }
+
+        .word-display { font-size: 2.8em; margin-bottom: 10px; color: var(--wood-color); }
+        .romaji-display, .english-display { font-size: 1.2em; color: #666; min-height: 1.5em; }
+        .feedback { font-size: 2em; font-weight: bold; min-height: 40px; margin-bottom: 10px; }
+        .feedback.correct { color: var(--accent-color); } .feedback.wrong { color: #4A6B8C; }
+
+        .box-container { display: flex; gap: 12px; justify-content: space-between; margin-bottom: 20px; }
+        .verb-box { flex: 1; border: 2px solid var(--wood-color); border-radius: 4px; display: flex; flex-direction: column; overflow: hidden; background: #fff; }
+        .box-header { padding: 15px 5px; text-align: center; font-weight: bold; font-size: 1.1em; cursor: pointer; border: none; width: 100%; color: var(--wood-color); border-bottom: 2px solid var(--wood-color); }
+        @media (max-width: 480px) { .box-header { padding: 12px 2px; font-size: 0.9em; } .word-display { font-size: 2.2em; } }
+        .g1-btn { background-color: var(--g1-color); } .g2-btn { background-color: var(--g2-color); } .g3-btn { background-color: var(--g3-color); }
+        .box-content { min-height: 120px; padding: 10px; font-size: 0.95em; display: flex; flex-direction: column; gap: 6px; background-color: rgba(255,255,255,0.5); }
+        .placed-word { background: #fff; padding: 6px; text-align: center; border-radius: 2px; border: 1px solid #E1D8CB; color: var(--wood-color); font-weight: bold; }
+        ruby rt { font-size: 0.6em; color: #888; }
+        input[type="radio"], input[type="checkbox"] { accent-color: var(--primary-color); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-top">
+        <div style="width: 30px;"></div>
+        <h1 class="header-title">Japanese Verb Sorter</h1>
+        <button class="menu-btn" onclick="openModal()">≡</button>
+    </div>
+    <div class="header-settings-bar">
+        <span style="font-weight:bold; margin-right:5px;"><ruby>表示<rt>ひょうじ</rt></ruby>:</span>
+        <label><input type="radio" name="header-script" value="kanji" class="sync-target" data-sync="script-kanji" checked> <ruby>漢字<rt>かんじ</rt></ruby></label>
+        <label><input type="radio" name="header-script" value="hiragana" class="sync-target" data-sync="script-hiragana"> ひらがな</label>
+        <span style="border-left: 1px solid #D5CBB9; height: 15px; margin: 0 5px;"></span>
+        <label><input type="checkbox" id="header-show-romaji" class="sync-target" data-sync="show-romaji" checked> Romaji</label>
+        <label><input type="checkbox" id="header-show-english" class="sync-target" data-sync="show-english" checked> English</label>
+    </div>
+</header>
+
+<div id="info-modal" class="modal" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation();">
+        <h3><ruby>表示<rt>ひょうじ</rt></ruby><ruby>設定<rt>せってい</rt></ruby> (Display Options)</h3>
+        <div class="modal-settings-group">
+            <div style="margin-bottom: 15px; border-bottom: 1px dashed #C4B8A6; padding-bottom: 10px;">
+                <label style="margin-right: 15px;"><input type="radio" name="modal-script" value="kanji" id="script-kanji" class="sync-target" data-sync="header-script-kanji" checked> <ruby>漢字<rt>かんじ</rt></ruby></label>
+                <label><input type="radio" name="modal-script" value="hiragana" id="script-hiragana" class="sync-target" data-sync="header-script-hiragana"> ひらがな</label>
+            </div>
+            <div>
+                <label style="margin-right: 15px;"><input type="checkbox" id="show-romaji" class="sync-target" data-sync="header-show-romaji" checked> Romaji</label>
+                <label><input type="checkbox" id="show-english" class="sync-target" data-sync="header-show-english" checked> English</label>
+            </div>
+        </div>
+
+        <h3><ruby>使<rt>つか</rt></ruby>い<ruby>方<rt>かた</rt></ruby> (How to Use)</h3>
+        <p><strong>【<ruby>先生<rt>せんせい</rt></ruby>へ (For Teachers)】</strong><br>1. 活用形を設定し、出題する単語を選択します。<br>2. 上部のバーやメニューから表示（漢字・ローマ字等）をいつでも切り替えられます。</p>
+        <p><strong>【<ruby>学生<rt>がくせい</rt></ruby>へ (For Students)】</strong><br>1. Read the word.<br>2. Tap the correct Group button.<br>3. Incorrect words are saved for review.</p>
+        <button class="btn" style="margin-top: 10px; padding: 12px;" onclick="document.getElementById('info-modal').style.display='none'"><ruby>閉<rt>と</rt></ruby>じる (Close)</button>
+    </div>
+</div>
+
+<div class="container">
+    <div id="setup-screen">
+        <div class="settings-section">
+            <h3>1. <ruby>活用形<rt>かつようけい</rt></ruby> (Verb Form)</h3>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 10px;">
+                <label><input type="radio" name="form" value="dict" checked> <ruby>辞書形<rt>じしょけい</rt></ruby> (Dict.)</label>
+                <label><input type="radio" name="form" value="masu"> ます<ruby>形<rt>けい</rt></ruby> (Masu)</label>
+                <label><input type="radio" name="form" value="te"> て<ruby>形<rt>けい</rt></ruby> (Te)</label>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>2. <ruby>単語<rt>たんご</rt></ruby>の<ruby>選択<rt>せんたく</rt></ruby> (Select Verbs)</h3>
+            <div class="filter-btns">
+                <button onclick="checkAll(true)"><ruby>全部<rt>ぜんぶ</rt></ruby> (All)</button>
+                <button onclick="checkAll(false)">クリア (Clear)</button>
+                <button onclick="checkGroup('G1')">G1</button>
+                <button onclick="checkGroup('G2')">G2</button>
+                <button onclick="checkGroup('G3')">G3</button>
+            </div>
+            <div class="checkbox-group" id="verb-checkboxes"></div>
+        </div>
+        <button class="btn btn-start" onclick="startApp()">START</button>
+    </div>
+
+    <div id="quiz-screen">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E1D8CB; padding-bottom: 10px;">
+            <span id="progress-text" style="font-weight: bold; color: var(--wood-color);">1 / 10</span>
+            <button onclick="returnToSetup()" style="padding: 5px 10px; cursor:pointer; background: #fff; border: 1px solid var(--wood-color); border-radius: 4px; color: var(--wood-color);">
+                <ruby>設定<rt>せってい</rt></ruby>に<ruby>戻<rt>もど</rt></ruby>る (Back)
+            </button>
+        </div>
+        <div class="question-area">
+            <div id="feedback" class="feedback"></div>
+            <div id="word-display" class="word-display"></div>
+            <div id="romaji-display" class="romaji-display"></div>
+            <div id="english-display" class="english-display"></div>
+        </div>
+        <p style="text-align: center; font-size: 0.9em; color: var(--wood-color); margin-bottom: 15px;">↓ <ruby>正<rt>ただ</rt></ruby>しいグループをタップ (Tap the correct group) ↓</p>
+        <div class="box-container">
+            <div class="verb-box"><button class="box-header g1-btn" onclick="checkAnswer('G1')">G1<br>(U-verb)</button><div class="box-content" id="box-g1"></div></div>
+            <div class="verb-box"><button class="box-header g2-btn" onclick="checkAnswer('G2')">G2<br>(Ru-verb)</button><div class="box-content" id="box-g2"></div></div>
+            <div class="verb-box"><button class="box-header g3-btn" onclick="checkAnswer('G3')">G3<br>(Irreg.)</button><div class="box-content" id="box-g3"></div></div>
+        </div>
+    </div>
+
+    <div id="result-screen">
+        <h2 style="color: var(--wood-color); text-align: center;">Practice Complete!</h2>
+        <p id="result-message" style="text-align: center; font-size: 1.5em; margin-bottom: 30px; font-weight: bold;"></p>
+        <button id="retry-btn" class="btn btn-start" onclick="startRepractice()" style="display: none; margin-bottom: 15px;">もう<ruby>一度<rt>いちど</rt></ruby> (Retry)</button>
+        <button class="btn" onclick="returnToSetup()" style="background-color: var(--wood-color);"><ruby>設定<rt>せってい</rt></ruby>に<ruby>戻<rt>もど</rt></ruby>る (Back to Settings)</button>
+    </div>
+</div>
+
+<script>
+const verbsData = [
+    { g: "G1", e: "to go", j_dict: "<ruby>行<rt>い</rt></ruby>く", h_dict: "いく", ro_dict: "iku", j_masu: "<ruby>行<rt>い</rt></ruby>きます", h_masu: "いきます", ro_masu: "ikimasu", j_te: "<ruby>行<rt>い</rt></ruby>って", h_te: "いって", ro_te: "itte" },
+    { g: "G2", e: "to eat", j_dict: "<ruby>食<rt>た</rt></ruby>べる", h_dict: "たべる", ro_dict: "taberu", j_masu: "<ruby>食<rt>た</rt></ruby>べます", h_masu: "たべます", ro_masu: "tabemasu", j_te: "<ruby>食<rt>た</rt></ruby>べて", h_te: "たべて", ro_te: "tabete" },
+    { g: "G1", e: "to drink", j_dict: "<ruby>飲<rt>の</rt></ruby>む", h_dict: "のむ", ro_dict: "nomu", j_masu: "<ruby>飲<rt>の</rt></ruby>みます", h_masu: "のみます", ro_masu: "nomimasu", j_te: "<ruby>飲<rt>の</rt></ruby>んで", h_te: "のんで", ro_te: "nonde" },
+    { g: "G2", e: "to see", j_dict: "<ruby>見<rt>み</rt></ruby>る", h_dict: "みる", ro_dict: "miru", j_masu: "<ruby>見<rt>み</rt></ruby>ます", h_masu: "みます", ro_masu: "mimasu", j_te: "<ruby>見<rt>み</rt></ruby>て", h_te: "みて", ro_te: "mite" },
+    { g: "G1", e: "to listen", j_dict: "<ruby>聞<rt>き</rt></ruby>く", h_dict: "きく", ro_dict: "kiku", j_masu: "<ruby>聞<rt>き</rt></ruby>きます", h_masu: "ききます", ro_masu: "kikimasu", j_te: "<ruby>聞<rt>き</rt></ruby>いて", h_te: "きいて", ro_te: "kiite" },
+    { g: "G1", e: "to speak", j_dict: "<ruby>話<rt>はな</rt></ruby>す", h_dict: "はなす", ro_dict: "hanasu", j_masu: "<ruby>話<rt>はな</rt></ruby>します", h_masu: "はなします", ro_masu: "hanashimasu", j_te: "<ruby>話<rt>はな</rt></ruby>して", h_te: "はなして", ro_te: "hanashite" },
+    { g: "G1", e: "to read", j_dict: "<ruby>読<rt>よ</rt></ruby>む", h_dict: "よむ", ro_dict: "yomu", j_masu: "<ruby>読<rt>よ</rt></ruby>みます", h_masu: "よみます", ro_masu: "yomimasu", j_te: "<ruby>読<rt>よ</rt></ruby>んで", h_te: "よんで", ro_te: "yonde" },
+    { g: "G1", e: "to write", j_dict: "<ruby>書<rt>か</rt></ruby>く", h_dict: "かく", ro_dict: "kaku", j_masu: "<ruby>書<rt>か</rt></ruby>きます", h_masu: "かきます", ro_masu: "kakimasu", j_te: "<ruby>書<rt>か</rt></ruby>いて", h_te: "かいて", ro_te: "kaite" },
+    { g: "G1", e: "to buy", j_dict: "<ruby>買<rt>か</rt></ruby>う", h_dict: "かう", ro_dict: "kau", j_masu: "<ruby>買<rt>か</rt></ruby>います", h_masu: "かいます", ro_masu: "kaimasu", j_te: "<ruby>買<rt>か</rt></ruby>って", h_te: "かって", ro_te: "katte" },
+    { g: "G1", e: "to sell", j_dict: "<ruby>売<rt>う</rt></ruby>る", h_dict: "うる", ro_dict: "uru", j_masu: "<ruby>売<rt>う</rt></ruby>ります", h_masu: "うります", ro_masu: "urimasu", j_te: "<ruby>売<rt>う</rt></ruby>って", h_te: "うって", ro_te: "utte" },
+    { g: "G3", e: "to come", j_dict: "<ruby>来<rt>く</rt></ruby>る", h_dict: "くる", ro_dict: "kuru", j_masu: "<ruby>来<rt>き</rt></ruby>ます", h_masu: "きます", ro_masu: "kimasu", j_te: "<ruby>来<rt>き</rt></ruby>て", h_te: "きて", ro_te: "kite" },
+    { g: "G1", e: "to return", j_dict: "<ruby>帰<rt>かえ</rt></ruby>る", h_dict: "かえる", ro_dict: "kaeru", j_masu: "<ruby>帰<rt>かえ</rt></ruby>ります", h_masu: "かえります", ro_masu: "kaerimasu", j_te: "<ruby>帰<rt>かえ</rt></ruby>って", h_te: "かえって", ro_te: "kaette" },
+    { g: "G3", e: "to do", j_dict: "する", h_dict: "する", ro_dict: "suru", j_masu: "します", h_masu: "します", ro_masu: "shimasu", j_te: "して", h_te: "して", ro_te: "shite" },
+    { g: "G3", e: "to study", j_dict: "<ruby>勉強<rt>べんきょう</rt></ruby>する", h_dict: "べんきょうする", ro_dict: "benkyousuru", j_masu: "<ruby>勉強<rt>べんきょう</rt></ruby>します", h_masu: "べんきょうします", ro_masu: "benkyoushimasu", j_te: "<ruby>勉強<rt>べんきょう</rt></ruby>して", h_te: "べんきょうして", ro_te: "benkyoushite" },
+    { g: "G1", e: "to meet", j_dict: "<ruby>会<rt>あ</rt></ruby>う", h_dict: "あう", ro_dict: "au", j_masu: "<ruby>会<rt>あ</rt></ruby>います", h_masu: "あいます", ro_masu: "aimasu", j_te: "<ruby>会<rt>あ</rt></ruby>って", h_te: "あって", ro_te: "atte" },
+    { g: "G1", e: "to wait", j_dict: "<ruby>待<rt>ま</rt></ruby>つ", h_dict: "まつ", ro_dict: "matsu", j_masu: "<ruby>待<rt>ま</rt></ruby>ちます", h_masu: "まちます", ro_masu: "machimasu", j_te: "<ruby>待<rt>ま</rt></ruby>って", h_te: "まって", ro_te: "matte" },
+    { g: "G1", e: "to swim", j_dict: "<ruby>泳<rt>およ</rt></ruby>ぐ", h_dict: "およぐ", ro_dict: "oyogu", j_masu: "<ruby>泳<rt>およ</rt></ruby>ぎます", h_masu: "およぎます", ro_masu: "oyogimasu", j_te: "<ruby>泳<rt>およ</rt></ruby>いで", h_te: "およいで", ro_te: "oyoide" },
+    { g: "G2", e: "to sleep", j_dict: "<ruby>寝<rt>ね</rt></ruby>る", h_dict: "ねる", ro_dict: "neru", j_masu: "<ruby>寝<rt>ね</rt></ruby>ます", h_masu: "ねます", ro_masu: "nemasu", j_te: "<ruby>寝<rt>ね</rt></ruby>て", h_te: "ねて", ro_te: "nete" },
+    { g: "G2", e: "to get up", j_dict: "<ruby>起<rt>お</rt></ruby>きる", h_dict: "おきる", ro_dict: "okiru", j_masu: "<ruby>起<rt>お</rt></ruby>きます", h_masu: "おきます", ro_masu: "okimasu", j_te: "<ruby>起<rt>お</rt></ruby>きて", h_te: "おきて", ro_te: "okite" }
+];
+
+let queue = []; let mistakeQueue = []; let currentIndex = 0; let mistakeCount = 0; let isProcessing = false;
+
+function openModal() { document.getElementById('info-modal').style.display = 'flex'; }
+function closeModal(e) { if(e.target.id === 'info-modal') document.getElementById('info-modal').style.display = 'none'; }
+
+// ★設定の同期ロジック (ヘッダーとメニュー内を完全に連動させる)
+function handleSync(event) {
+    const targetId = event.target.dataset.sync;
+    const targetElement = document.getElementById(targetId) || document.querySelector(`input[data-sync="${event.target.id}"]`) || document.querySelector(`input[value="${event.target.value}"][data-sync]`);
+    
+    if (event.target.type === 'checkbox') {
+        targetElement.checked = event.target.checked;
+    } else if (event.target.type === 'radio') {
+        // ラジオボタンの同期（name属性が違うので手動で同期）
+        const val = event.target.value;
+        document.querySelector(`#script-${val}`).checked = true;
+        document.querySelector(`input[name="header-script"][value="${val}"]`).checked = true;
+    }
+    
+    updateCheckboxLabels();
+    if(document.getElementById('quiz-screen').style.display === 'block') {
+        updateCurrentQuestionDisplay(); // クイズ中なら画面にも即反映
+    }
+}
+
+// 画面表示用の値を取得する共通関数
+function getCurrentSettings() {
+    return {
+        script: document.querySelector('input[name="header-script"]:checked').value,
+        form: document.querySelector('input[name="form"]:checked').value,
+        showRomaji: document.getElementById('header-show-romaji').checked,
+        showEnglish: document.getElementById('header-show-english').checked
+    };
+}
+
+function updateCheckboxLabels() {
+    const settings = getCurrentSettings();
+    const container = document.getElementById('verb-checkboxes');
+    const checkedStates = Array.from(document.querySelectorAll('.verb-check')).map(cb => cb.checked);
+    container.innerHTML = ''; 
+    
+    verbsData.forEach((verb, index) => {
+        let mainText = settings.form === 'dict' ? (settings.script === 'kanji' ? verb.j_dict : verb.h_dict) : 
+                       settings.form === 'masu' ? (settings.script === 'kanji' ? verb.j_masu : verb.h_masu) : 
+                       (settings.script === 'kanji' ? verb.j_te : verb.h_te);
+        let roText = settings.form === 'dict' ? verb.ro_dict : settings.form === 'masu' ? verb.ro_masu : verb.ro_te;
+        
+        let subText = [];
+        if (settings.showRomaji) subText.push(roText);
+        if (settings.showEnglish) subText.push(verb.e);
+
+        const label = document.createElement('label'); label.className = 'checkbox-item';
+        const isChecked = checkedStates.length > 0 ? checkedStates[index] : true;
+        
+        label.innerHTML = `<input type="checkbox" class="verb-check" value="${index}" data-group="${verb.g}" ${isChecked ? 'checked' : ''}>
+            <div class="verb-details"><span class="verb-main">${mainText} (${verb.g})</span>${subText.length > 0 ? `<span class="verb-sub">${subText.join(' / ')}</span>` : ''}</div>`;
+        container.appendChild(label);
+    });
+    
+    // 設置済みのボックス内の文字も更新
+    document.querySelectorAll('.placed-word').forEach(div => {
+        const verbIndex = div.dataset.index;
+        if(verbIndex) {
+            const v = verbsData[verbIndex];
+            div.innerHTML = settings.form === 'dict' ? (settings.script === 'kanji' ? v.j_dict : v.h_dict) : 
+                            settings.form === 'masu' ? (settings.script === 'kanji' ? v.j_masu : v.h_masu) : 
+                            (settings.script === 'kanji' ? v.j_te : v.h_te);
+        }
+    });
+}
+
+window.onload = () => {
+    // 同期イベントの登録
+    document.querySelectorAll('.sync-target').forEach(input => input.addEventListener('change', handleSync));
+    document.querySelectorAll('input[name="form"]').forEach(input => input.addEventListener('change', updateCheckboxLabels));
+    updateCheckboxLabels();
+};
+
+function checkAll(checked) { document.querySelectorAll('.verb-check').forEach(cb => cb.checked = checked); }
+function checkGroup(group) { checkAll(false); document.querySelectorAll(`.verb-check[data-group="${group}"]`).forEach(cb => cb.checked = true); }
+
+function startApp() {
+    const selectedIndexes = Array.from(document.querySelectorAll('.verb-check:checked')).map(cb => parseInt(cb.value));
+    if (selectedIndexes.length === 0) { alert("<ruby>単語<rt>たんご</rt></ruby>を<ruby>選<rt>えら</rt></ruby>んでください。 (Please select words.)"); return; }
+    // 復元用にインデックスを保持
+    queue = selectedIndexes.map(index => ({...verbsData[index], originalIndex: index})).sort(() => Math.random() - 0.5);
+    mistakeQueue = []; startQuizQueue();
+}
+
+function startRepractice() { queue = [...mistakeQueue].sort(() => Math.random() - 0.5); mistakeQueue = []; startQuizQueue(); }
+
+function startQuizQueue() {
+    document.getElementById('setup-screen').style.display = 'none'; document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('quiz-screen').style.display = 'block';
+    document.getElementById('box-g1').innerHTML = ''; document.getElementById('box-g2').innerHTML = ''; document.getElementById('box-g3').innerHTML = '';
+    currentIndex = 0; showQuestion(); window.scrollTo(0,0);
+}
+
+function returnToSetup() {
+    document.getElementById('setup-screen').style.display = 'block'; document.getElementById('quiz-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'none'; window.scrollTo(0,0);
+}
+
+// クイズ画面の現在表示を更新するロジック（途中で設定を変えた時用）
+function updateCurrentQuestionDisplay() {
+    if(currentIndex >= queue.length) return;
+    const verb = queue[currentIndex];
+    const settings = getCurrentSettings();
+    
+    let jText = settings.form === 'dict' ? (settings.script === 'kanji' ? verb.j_dict : verb.h_dict) : 
+                settings.form === 'masu' ? (settings.script === 'kanji' ? verb.j_masu : verb.h_masu) : 
+                (settings.script === 'kanji' ? verb.j_te : verb.h_te);
+    let roText = settings.form === 'dict' ? verb.ro_dict : settings.form === 'masu' ? verb.ro_masu : verb.ro_te;
+
+    document.getElementById('word-display').innerHTML = jText;
+    document.getElementById('romaji-display').innerText = settings.showRomaji ? roText : '';
+    document.getElementById('english-display').innerText = settings.showEnglish ? verb.e : '';
+}
+
+function showQuestion() {
+    if (currentIndex >= queue.length) { showResult(); return; }
+    mistakeCount = 0; isProcessing = false; document.getElementById('feedback').innerHTML = '';
+    document.getElementById('progress-text').innerText = `${currentIndex + 1} / ${queue.length}`;
+    updateCurrentQuestionDisplay();
+}
+
+function checkAnswer(selectedGroup) {
+    if (isProcessing) return;
+    const verb = queue[currentIndex]; const feedbackEl = document.getElementById('feedback');
+    
+    if (verb.g === selectedGroup) {
+        isProcessing = true; feedbackEl.innerHTML = '〇'; feedbackEl.className = 'feedback correct';
+        addWordToBox(verb, selectedGroup); setTimeout(() => { currentIndex++; showQuestion(); }, 800);
+    } else {
+        mistakeCount++; feedbackEl.innerHTML = '×'; feedbackEl.className = 'feedback wrong';
+        if (mistakeCount === 1) {
+            setTimeout(() => { feedbackEl.innerHTML = 'Try again!'; feedbackEl.style.color = 'var(--wood-color)'; }, 800);
+        } else {
+            isProcessing = true; if (!mistakeQueue.includes(verb)) mistakeQueue.push(verb);
+            feedbackEl.innerHTML = `<ruby>正解<rt>せいかい</rt></ruby>は ${verb.g} です`; feedbackEl.style.color = 'var(--wood-color)'; feedbackEl.style.fontSize = '1.2em';
+            addWordToBox(verb, verb.g); setTimeout(() => { feedbackEl.style.fontSize = '2em'; currentIndex++; showQuestion(); }, 1500);
+        }
+    }
+}
+
+function addWordToBox(verb, group) {
+    const box = document.getElementById(`box-${group.toLowerCase()}`);
+    const div = document.createElement('div'); div.className = 'placed-word'; div.dataset.index = verb.originalIndex; // 記録
+    const settings = getCurrentSettings();
+    div.innerHTML = settings.form === 'dict' ? (settings.script === 'kanji' ? verb.j_dict : verb.h_dict) : 
+                    settings.form === 'masu' ? (settings.script === 'kanji' ? verb.j_masu : verb.h_masu) : 
+                    (settings.script === 'kanji' ? verb.j_te : verb.h_te);
+    box.appendChild(div); box.scrollTop = box.scrollHeight;
+}
+
+function showResult() {
+    document.getElementById('quiz-screen').style.display = 'none'; document.getElementById('result-screen').style.display = 'block';
+    const msgEl = document.getElementById('result-message'); const retryBtn = document.getElementById('retry-btn');
+    if (mistakeQueue.length === 0) {
+        msgEl.innerHTML = "<ruby>正解<rt>せいかい</rt></ruby>！<br><span style='font-size:0.6em; color:#888;'>(Perfect!)</span>"; retryBtn.style.display = 'none';
+    } else {
+        msgEl.innerHTML = `<span style="color:var(--accent-color); font-size:1.5em;">${mistakeQueue.length}</span> 個の<ruby>単語<rt>たんご</rt></ruby>を<ruby>復習<rt>ふくしゅう</rt></ruby>しましょう。<br><span style='font-size:0.6em; color:#888;'>(Let's review ${mistakeQueue.length} words.)</span>`;
+        retryBtn.style.display = 'block';
+    }
+}
+</script>
+
+</body>
+</html>
